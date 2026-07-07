@@ -1,0 +1,6 @@
+requests
+pandas
+psycopg[binary]
+boto3
+python-dotenv
+

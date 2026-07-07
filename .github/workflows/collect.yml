@@ -1,0 +1,40 @@
+name: Collect Polymarket Data
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/15 * * * *"
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run collector
+        env:
+          OUTPUT_DIR: dist
+          MAX_EVENTS: "300"
+          TRADES_PER_MARKET: "500"
+          TOP_MARKETS_FOR_TRADES: "50"
+          MIN_WHALE_USD: "1000"
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_ENDPOINT_URL: ${{ secrets.R2_ENDPOINT_URL }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: python src/collect.py
+
+      - name: Upload local artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-json
+          path: dist
+
