@@ -52,4 +52,6 @@ The collector writes JSON into `dist/` by default. Configure R2 upload with:
 - `R2_SECRET_ACCESS_KEY`
 - `REQUIRE_R2_UPLOAD=true` in CI, so a workflow run fails if R2 secrets are missing or no JSON files are uploaded.
 
+`R2_BUCKET` may be configured as either a GitHub secret or a GitHub repository variable.
+
 If local Windows certificate verification fails during development, you can run a smoke test with `COLLECTOR_SSL_VERIFY=false`. Keep SSL verification enabled in GitHub Actions and production jobs.
