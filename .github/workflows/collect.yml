@@ -30,6 +30,7 @@ jobs:
           R2_ENDPOINT_URL: ${{ secrets.R2_ENDPOINT_URL }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          REQUIRE_R2_UPLOAD: "true"
         run: python src/collect.py
 
       - name: Upload local artifact
@@ -37,4 +38,3 @@ jobs:
         with:
           name: dashboard-json
           path: dist
-

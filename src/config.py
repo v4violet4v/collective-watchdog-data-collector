@@ -20,6 +20,7 @@ class CollectorConfig:
     r2_endpoint_url: str | None
     r2_access_key_id: str | None
     r2_secret_access_key: str | None
+    require_r2_upload: bool
 
 
 def load_config() -> CollectorConfig:
@@ -37,5 +38,5 @@ def load_config() -> CollectorConfig:
         r2_endpoint_url=os.getenv("R2_ENDPOINT_URL"),
         r2_access_key_id=os.getenv("R2_ACCESS_KEY_ID"),
         r2_secret_access_key=os.getenv("R2_SECRET_ACCESS_KEY"),
+        require_r2_upload=os.getenv("REQUIRE_R2_UPLOAD", "false").lower() in {"1", "true", "yes"},
     )
-

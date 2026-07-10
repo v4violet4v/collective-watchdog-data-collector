@@ -9,7 +9,18 @@ from config import CollectorConfig
 
 def upload_directory_to_r2(config: CollectorConfig) -> None:
     if not all([config.r2_bucket, config.r2_endpoint_url, config.r2_access_key_id, config.r2_secret_access_key]):
-        print("R2 upload skipped: R2 environment variables are not fully configured.")
+        message = "R2 upload skipped: R2 environment variables are not fully configured."
+        if config.require_r2_upload:
+            raise RuntimeError(message)
+        print(message)
+        return
+
+    json_files = list(config.output_dir.rglob("*.json"))
+    if not json_files:
+        message = f"R2 upload skipped: no JSON files found under {config.output_dir}."
+        if config.require_r2_upload:
+            raise RuntimeError(message)
+        print(message)
         return
 
     client = boto3.client(
@@ -20,7 +31,8 @@ def upload_directory_to_r2(config: CollectorConfig) -> None:
         region_name="auto",
     )
 
-    for path in config.output_dir.rglob("*.json"):
+    uploaded = 0
+    for path in json_files:
         key = path.relative_to(config.output_dir).as_posix()
         client.upload_file(
             str(path),
@@ -28,5 +40,7 @@ def upload_directory_to_r2(config: CollectorConfig) -> None:
             key,
             ExtraArgs={"ContentType": "application/json", "CacheControl": "public, max-age=60"},
         )
+        uploaded += 1
         print(f"Uploaded r2://{config.r2_bucket}/{key}")
 
+    print(f"Uploaded {uploaded} JSON files to R2 bucket {config.r2_bucket}.")
