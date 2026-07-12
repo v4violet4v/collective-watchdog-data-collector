@@ -25,7 +25,7 @@ jobs:
           MAX_EVENTS: "300"
           TRADES_PER_MARKET: "1000"
           TOP_MARKETS_FOR_TRADES: "50"
-          MIN_WHALE_USD: "1000"
+          MIN_WHALE_USD: "10000"
           R2_BUCKET: ${{ secrets.R2_BUCKET || vars.R2_BUCKET }}
           R2_ENDPOINT_URL: ${{ secrets.R2_ENDPOINT_URL }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}

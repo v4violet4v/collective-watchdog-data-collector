@@ -32,7 +32,7 @@ def load_config() -> CollectorConfig:
         price_history_fidelity=int(os.getenv("PRICE_HISTORY_FIDELITY", "60")),
         trades_per_market=int(os.getenv("TRADES_PER_MARKET", "500")),
         top_markets_for_trades=int(os.getenv("TOP_MARKETS_FOR_TRADES", "50")),
-        min_whale_usd=float(os.getenv("MIN_WHALE_USD", "1000")),
+        min_whale_usd=float(os.getenv("MIN_WHALE_USD", "10000")),
         min_whale_history=int(os.getenv("MIN_WHALE_HISTORY", "20")),
         r2_bucket=os.getenv("R2_BUCKET"),
         r2_endpoint_url=os.getenv("R2_ENDPOINT_URL"),

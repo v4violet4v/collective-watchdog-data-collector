@@ -7,10 +7,9 @@ from typing import Any
 
 from normalize import masked_wallet, to_float
 
-WATCH_Z = 3.0
-LARGE_Z = 4.0
-EXTREME_Z = 5.0
-WATCH_BREAKOUT_RATIO = 1.25
+WATCH_PERCENTILE = 99.5
+LARGE_Z = 5.0
+EXTREME_Z = 7.0
 LARGE_BREAKOUT_RATIO = 1.5
 EXTREME_BREAKOUT_RATIO = 2.0
 
@@ -72,18 +71,15 @@ def detect_whales(
                 percentile = _percentile_rank(sorted_prior, notional)
                 z_score = _robust_z([math.log(max(value, 0.0) + 1) for value in prior_values], notional)
 
-                is_breakout = breakout_ratio >= WATCH_BREAKOUT_RATIO or z_score >= WATCH_Z
-                is_new_high = notional > prior_max
-                if not is_new_high or not is_breakout:
-                    prior_values.append(notional)
-                    continue
-
                 if breakout_ratio >= EXTREME_BREAKOUT_RATIO or z_score >= EXTREME_Z:
                     severity = "Extreme"
                 elif breakout_ratio >= LARGE_BREAKOUT_RATIO or z_score >= LARGE_Z:
                     severity = "Large"
-                else:
+                elif percentile >= WATCH_PERCENTILE:
                     severity = "Watch"
+                else:
+                    prior_values.append(notional)
+                    continue
 
                 trader_name = trade.get("name") or trade.get("pseudonym")
                 alerts.append(
