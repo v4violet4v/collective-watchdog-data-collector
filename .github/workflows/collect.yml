@@ -23,7 +23,7 @@ jobs:
         env:
           OUTPUT_DIR: dist
           MAX_EVENTS: "300"
-          TRADES_PER_MARKET: "500"
+          TRADES_PER_MARKET: "1000"
           TOP_MARKETS_FOR_TRADES: "50"
           MIN_WHALE_USD: "1000"
           R2_BUCKET: ${{ secrets.R2_BUCKET || vars.R2_BUCKET }}

@@ -81,7 +81,10 @@ def detect_whales(
                 }
             )
 
-        alerts_by_market[public_slug] = sorted(alerts, key=lambda row: row["notional_usd"], reverse=True)
+        alerts_by_market[public_slug] = sorted(
+            alerts,
+            key=lambda row: (to_float(row.get("time")), row["notional_usd"]),
+            reverse=True,
+        )
 
     return alerts_by_market
-
