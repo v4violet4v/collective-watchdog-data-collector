@@ -51,10 +51,9 @@ def to_bool(value: Any) -> bool:
 def money_millions(value: Any) -> float:
     raw = to_float(value)
     millions = raw / 1_000_000
-    rounded = round(millions, 1)
-    if raw > 0 and rounded == 0:
-        return 0.01
-    return rounded
+    if 0 < raw < 100_000:
+        return round(millions, 3)
+    return round(millions, 1)
 
 
 def slugify(value: str, fallback: str) -> str:
