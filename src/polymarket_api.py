@@ -24,9 +24,24 @@ if not SSL_VERIFY:
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
+def _order_candidates(order: str) -> list[str]:
+    candidates = [order]
+    if order == "volume_24hr":
+        candidates.insert(0, "volume24hr")
+    elif order == "volume24hr":
+        candidates.append("volume_24hr")
+    if order in {"volume_24hr", "volume24hr"}:
+        candidates.append("volume")
+    return list(dict.fromkeys(candidates))
+
+
 def request_json(url: str, params: dict[str, Any] | None = None, timeout: int = 30) -> Any:
     response = requests.get(url, params=params, headers=HEADERS, timeout=timeout, verify=SSL_VERIFY)
-    response.raise_for_status()
+    try:
+        response.raise_for_status()
+    except requests.HTTPError as exc:
+        body = response.text[:1000].replace("\n", " ")
+        raise RuntimeError(f"HTTP {response.status_code} from {url} with params={params}: {body}") from exc
     return response.json()
 
 
@@ -36,7 +51,7 @@ def fetch_events(
     page_size: int,
     active: bool | None = None,
     closed: bool | None = None,
-    order: str = "volume_24hr",
+    order: str = "volume24hr",
     ascending: bool = False,
 ) -> list[dict[str, Any]]:
     events: list[dict[str, Any]] = []
@@ -44,18 +59,29 @@ def fetch_events(
 
     while len(events) < max_events:
         limit = min(page_size, max_events - len(events))
-        params: dict[str, Any] = {
+        base_params: dict[str, Any] = {
             "limit": limit,
             "offset": offset,
-            "order": order,
             "ascending": str(ascending).lower(),
         }
         if active is not None:
-            params["active"] = str(active).lower()
+            base_params["active"] = str(active).lower()
         if closed is not None:
-            params["closed"] = str(closed).lower()
+            base_params["closed"] = str(closed).lower()
 
-        payload = request_json(GAMMA_EVENTS_URL, params=params)
+        last_error: Exception | None = None
+        for order_value in _order_candidates(order):
+            params = {**base_params, "order": order_value}
+            try:
+                payload = request_json(GAMMA_EVENTS_URL, params=params)
+                break
+            except RuntimeError as exc:
+                last_error = exc
+                if "HTTP 422" not in str(exc):
+                    raise
+        else:
+            raise last_error or RuntimeError("Gamma events request failed")
+
         batch = payload if isinstance(payload, list) else payload.get("data", [])
         if not batch:
             break
