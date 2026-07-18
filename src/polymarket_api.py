@@ -104,10 +104,25 @@ def fetch_book(token_id: str) -> dict[str, Any]:
     return request_json(CLOB_BOOK_URL, params={"token_id": token_id}, timeout=20)
 
 
-def fetch_price_history(token_id: str, interval: str = "1w", fidelity: int = 60) -> list[dict[str, Any]]:
+def fetch_price_history(
+    token_id: str,
+    interval: str = "1w",
+    fidelity: int = 60,
+    start_ts: int | None = None,
+    end_ts: int | None = None,
+) -> list[dict[str, Any]]:
+    params: dict[str, Any] = {"market": token_id, "fidelity": fidelity}
+    if start_ts is not None or end_ts is not None:
+        if start_ts is not None:
+            params["startTs"] = start_ts
+        if end_ts is not None:
+            params["endTs"] = end_ts
+    else:
+        params["interval"] = interval
+
     payload = request_json(
         CLOB_PRICE_HISTORY_URL,
-        params={"market": token_id, "interval": interval, "fidelity": fidelity},
+        params=params,
         timeout=20,
     )
     if isinstance(payload, dict):

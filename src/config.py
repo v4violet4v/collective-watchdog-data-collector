@@ -12,6 +12,8 @@ class CollectorConfig:
     event_page_size: int
     price_history_interval: str
     price_history_fidelity: int
+    price_history_days: int
+    price_history_max_points: int
     trades_per_market: int
     top_markets_for_trades: int
     min_whale_usd: float
@@ -29,7 +31,9 @@ def load_config() -> CollectorConfig:
         max_events=int(os.getenv("MAX_EVENTS", "300")),
         event_page_size=int(os.getenv("EVENT_PAGE_SIZE", "100")),
         price_history_interval=os.getenv("PRICE_HISTORY_INTERVAL", "1w"),
-        price_history_fidelity=int(os.getenv("PRICE_HISTORY_FIDELITY", "60")),
+        price_history_fidelity=int(os.getenv("PRICE_HISTORY_FIDELITY", "1440")),
+        price_history_days=int(os.getenv("PRICE_HISTORY_DAYS", "90")),
+        price_history_max_points=int(os.getenv("PRICE_HISTORY_MAX_POINTS", "240")),
         trades_per_market=int(os.getenv("TRADES_PER_MARKET", "500")),
         top_markets_for_trades=int(os.getenv("TOP_MARKETS_FOR_TRADES", "50")),
         min_whale_usd=float(os.getenv("MIN_WHALE_USD", "10000")),

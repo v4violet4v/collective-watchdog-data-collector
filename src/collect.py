@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from datetime import datetime, timedelta, timezone
 
 from compute_whales import detect_whales
 from config import load_config
@@ -19,6 +20,13 @@ def write_json(path: Path, data: object) -> None:
 def main() -> None:
     config = load_config()
     generated_at = now_iso()
+    price_history_end_ts: int | None = None
+    price_history_start_ts: int | None = None
+    if config.price_history_days > 0:
+        price_history_end = datetime.now(timezone.utc)
+        price_history_start = price_history_end - timedelta(days=config.price_history_days)
+        price_history_end_ts = int(price_history_end.timestamp())
+        price_history_start_ts = int(price_history_start.timestamp())
 
     print("Fetching active and closed Polymarket events...")
     active_events = fetch_events(max_events=config.max_events, page_size=config.event_page_size, active=True, closed=False)
@@ -47,11 +55,14 @@ def main() -> None:
                     token_id,
                     interval=config.price_history_interval,
                     fidelity=config.price_history_fidelity,
+                    start_ts=price_history_start_ts,
+                    end_ts=price_history_end_ts,
                 )
                 if not market["price_history"]:
+                    trimmed_history = history[-config.price_history_max_points :]
                     market["price_history"] = [
                         {"t": row.get("t") or row.get("timestamp"), "last_trade_price": to_float(row.get("p"))}
-                        for row in history[-80:]
+                        for row in trimmed_history
                     ]
             except Exception as exc:
                 outcome["history_error"] = str(exc)
