@@ -17,6 +17,44 @@ def write_json(path: Path, data: object) -> None:
     print(f"Wrote {path}")
 
 
+def fetch_chart_history(token_id: str, config, start_ts: int | None, end_ts: int | None) -> list[dict]:
+    attempts = []
+    if start_ts is not None or end_ts is not None:
+        attempts.append(("configured-range", start_ts, end_ts, config.price_history_interval))
+    attempts.extend(
+        [
+            ("max-fallback", None, None, "max"),
+            ("1m-fallback", None, None, "1m"),
+            ("1w-fallback", None, None, "1w"),
+        ],
+    )
+
+    last_history: list[dict] = []
+    last_error: Exception | None = None
+    for label, attempt_start, attempt_end, interval in attempts:
+        try:
+            history = fetch_price_history(
+                token_id,
+                interval=interval,
+                fidelity=config.price_history_fidelity,
+                start_ts=attempt_start,
+                end_ts=attempt_end,
+            )
+            if len(history) >= 2:
+                return history
+            last_history = history
+            print(f"Price history attempt {label} returned {len(history)} points for token {token_id}")
+        except Exception as exc:
+            last_error = exc
+            print(f"Price history attempt {label} failed for token {token_id}: {exc}")
+
+    if last_history:
+        return last_history
+    if last_error:
+        raise last_error
+    return []
+
+
 def main() -> None:
     config = load_config()
     generated_at = now_iso()
@@ -51,13 +89,7 @@ def main() -> None:
                 outcome["book_error"] = str(exc)
 
             try:
-                history = fetch_price_history(
-                    token_id,
-                    interval=config.price_history_interval,
-                    fidelity=config.price_history_fidelity,
-                    start_ts=price_history_start_ts,
-                    end_ts=price_history_end_ts,
-                )
+                history = fetch_chart_history(token_id, config, price_history_start_ts, price_history_end_ts)
                 if not market["price_history"]:
                     trimmed_history = history[-config.price_history_max_points :]
                     market["price_history"] = [
