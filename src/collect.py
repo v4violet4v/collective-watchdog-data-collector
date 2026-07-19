@@ -55,6 +55,17 @@ def fetch_chart_history(token_id: str, config, start_ts: int | None, end_ts: int
     return []
 
 
+def normalize_price_history(history: list[dict], max_points: int) -> list[dict]:
+    points = []
+    for row in history[-max_points:]:
+        timestamp = row.get("t") or row.get("timestamp")
+        price = row.get("p")
+        if timestamp is None or price is None:
+            continue
+        points.append({"t": timestamp, "last_trade_price": to_float(price)})
+    return points
+
+
 def main() -> None:
     config = load_config()
     generated_at = now_iso()
@@ -90,12 +101,9 @@ def main() -> None:
 
             try:
                 history = fetch_chart_history(token_id, config, price_history_start_ts, price_history_end_ts)
-                if not market["price_history"]:
-                    trimmed_history = history[-config.price_history_max_points :]
-                    market["price_history"] = [
-                        {"t": row.get("t") or row.get("timestamp"), "last_trade_price": to_float(row.get("p"))}
-                        for row in trimmed_history
-                    ]
+                history_points = normalize_price_history(history, config.price_history_max_points)
+                if len(history_points) >= 2 and len(history_points) > len(market["price_history"]):
+                    market["price_history"] = history_points
             except Exception as exc:
                 outcome["history_error"] = str(exc)
 
