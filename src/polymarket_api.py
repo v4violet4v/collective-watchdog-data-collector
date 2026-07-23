@@ -130,10 +130,10 @@ def fetch_price_history(
     return payload if isinstance(payload, list) else []
 
 
-def fetch_trades(condition_id: str, limit: int = 500) -> list[dict[str, Any]]:
-    payload = request_json(
-        DATA_TRADES_URL,
-        params={"market": condition_id, "limit": limit, "offset": 0, "takerOnly": "true"},
-        timeout=30,
-    )
+def fetch_trades(condition_id: str, limit: int = 500, end_ts: int | None = None) -> list[dict[str, Any]]:
+    params: dict[str, Any] = {"market": condition_id, "limit": limit, "offset": 0, "takerOnly": "true"}
+    if end_ts is not None:
+        params["end"] = end_ts
+
+    payload = request_json(DATA_TRADES_URL, params=params, timeout=30)
     return payload if isinstance(payload, list) else payload.get("data", [])

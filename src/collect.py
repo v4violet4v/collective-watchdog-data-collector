@@ -3,11 +3,12 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 from compute_whales import detect_whales
 from config import load_config
 from export_r2 import upload_directory_to_r2
-from normalize import normalize_events, now_iso, summarize_book, to_float
+from normalize import normalize_events, summarize_book, to_float
 from polymarket_api import fetch_book, fetch_events, fetch_price_history, fetch_tags, fetch_trades
 
 
@@ -66,13 +67,54 @@ def normalize_price_history(history: list[dict], max_points: int) -> list[dict]:
     return points
 
 
+def parse_market_end_ts(value: Any) -> int | None:
+    if value is None or value == "":
+        return None
+
+    if isinstance(value, (int, float)):
+        timestamp = float(value)
+        if timestamp <= 0:
+            return None
+        if timestamp > 10_000_000_000:
+            timestamp /= 1000
+        return int(timestamp)
+
+    text = str(value).strip()
+    if not text:
+        return None
+
+    try:
+        if len(text) == 10 and text[4] == "-" and text[7] == "-":
+            end_dt = datetime.fromisoformat(text).replace(tzinfo=timezone.utc)
+            end_dt = end_dt + timedelta(days=1) - timedelta(seconds=1)
+        else:
+            end_dt = datetime.fromisoformat(text.replace("Z", "+00:00"))
+            if end_dt.tzinfo is None:
+                end_dt = end_dt.replace(tzinfo=timezone.utc)
+            else:
+                end_dt = end_dt.astimezone(timezone.utc)
+    except ValueError:
+        return None
+
+    return int(end_dt.timestamp())
+
+
+def trade_fetch_end_ts(market: dict[str, Any], now_ts: int) -> int | None:
+    end_ts = parse_market_end_ts(market.get("end_date"))
+    if end_ts is not None and end_ts < now_ts:
+        return end_ts
+    return None
+
+
 def main() -> None:
     config = load_config()
-    generated_at = now_iso()
+    now = datetime.now(timezone.utc)
+    generated_at = now.replace(microsecond=0).isoformat()
+    now_ts = int(now.timestamp())
     price_history_end_ts: int | None = None
     price_history_start_ts: int | None = None
     if config.price_history_days > 0:
-        price_history_end = datetime.now(timezone.utc)
+        price_history_end = now
         price_history_start = price_history_end - timedelta(days=config.price_history_days)
         price_history_end_ts = int(price_history_end.timestamp())
         price_history_start_ts = int(price_history_start.timestamp())
@@ -112,7 +154,14 @@ def main() -> None:
     print(f"Fetching trades for {len(top_markets)} high-priority markets...")
     for market in top_markets:
         try:
-            trades_by_market[market["public_slug"]] = fetch_trades(market["source_condition_id"], config.trades_per_market)
+            end_ts = trade_fetch_end_ts(market, now_ts)
+            if end_ts is not None:
+                print(f"Capping trades for ended market {market['public_slug']} at end timestamp {end_ts}")
+            trades_by_market[market["public_slug"]] = fetch_trades(
+                market["source_condition_id"],
+                config.trades_per_market,
+                end_ts=end_ts,
+            )
         except Exception as exc:
             print(f"Trade fetch failed for {market['public_slug']}: {exc}")
             trades_by_market[market["public_slug"]] = []
