@@ -48,12 +48,13 @@ def to_bool(value: Any) -> bool:
     return bool(value)
 
 
-def money_millions(value: Any) -> float:
-    raw = to_float(value)
-    millions = raw / 1_000_000
-    if 0 < raw < 100_000:
-        return round(millions, 3)
-    return round(millions, 1)
+def money_millions(value: Any) -> float | None:
+    raw = to_float(value, None)
+    return raw / 1_000_000 if raw is not None and raw >= 0 else None
+
+
+def first_present(*values: Any) -> Any:
+    return next((value for value in values if value is not None and value != ""), None)
 
 
 def slugify(value: str, fallback: str) -> str:
@@ -93,9 +94,9 @@ def normalize_events(events: list[dict[str, Any]], generated_at: str) -> tuple[l
                 "event_slug": event_slug,
                 "active": to_bool(event.get("active")),
                 "closed": to_bool(event.get("closed")),
-                "volume_m": money_millions(event.get("volume") or event.get("volumeNum")),
+                "volume_m": money_millions(first_present(event.get("volume"), event.get("volumeNum"))),
                 "volume_24h_m": money_millions(event.get("volume24hr")),
-                "liquidity_m": money_millions(event.get("liquidity") or event.get("liquidityNum")),
+                "liquidity_m": money_millions(first_present(event.get("liquidity"), event.get("liquidityNum"))),
                 "tags": [tag.get("label") or tag.get("name") for tag in event.get("tags", []) if isinstance(tag, dict)],
                 "markets": [],
             },
@@ -119,18 +120,22 @@ def normalize_events(events: list[dict[str, Any]], generated_at: str) -> tuple[l
                 "event_slug": event_slug,
                 "public_slug": public_slug,
                 "question": question,
+                "description": market.get("description") or "",
+                "resolution_source": market.get("resolutionSource") or "",
+                "source_url": f"https://polymarket.com/event/{event_slug}",
                 "active": to_bool(market.get("active")),
                 "closed": to_bool(market.get("closed")),
                 "end_date": market.get("endDateIso") or market.get("endDate"),
-                "volume_m": money_millions(market.get("volumeNum") or market.get("volume")),
-                "volume_24h_m": money_millions(market.get("volume24hr") or market.get("volume24hrClob")),
-                "liquidity_m": money_millions(market.get("liquidityNum") or market.get("liquidity")),
+                "volume_m": money_millions(first_present(market.get("volumeNum"), market.get("volume"))),
+                "volume_24h_m": money_millions(first_present(market.get("volume24hr"), market.get("volume24hrClob"))),
+                "liquidity_m": money_millions(first_present(market.get("liquidityNum"), market.get("liquidity"))),
                 "last_trade_price": to_float(market.get("lastTradePrice"), 0.0),
                 "source_condition_id": condition_id,
                 "outcomes": [
                     {
                         "name": outcomes[i] if i < len(outcomes) else f"Outcome {i + 1}",
-                        "probability": to_float(outcome_prices[i], 0.0) if i < len(outcome_prices) else 0.0,
+                        "probability": to_float(outcome_prices[i], None) if i < len(outcome_prices) else None,
+                        "probability_source": "gamma_outcome_price",
                         "source_token_id": token_ids[i] if i < len(token_ids) else "",
                     }
                     for i in range(max(len(outcomes), len(token_ids)))

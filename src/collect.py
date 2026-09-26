@@ -7,7 +7,8 @@ from typing import Any
 
 from compute_whales import detect_whales
 from config import load_config
-from export_r2 import upload_directory_to_r2
+from export_r2 import upload_directory_to_r2, read_snapshots
+from summaries import enrich_snapshots, lightweight_events
 from normalize import normalize_events, summarize_book, to_float
 from polymarket_api import fetch_book, fetch_events, fetch_price_history, fetch_tags, fetch_trades
 
@@ -125,7 +126,7 @@ def main() -> None:
     tags = fetch_tags()
 
     public_events, flat_markets = normalize_events(active_events + closed_events, generated_at)
-    flat_markets.sort(key=lambda row: (row["closed"], -row["volume_24h_m"], -row["volume_m"]))
+    flat_markets.sort(key=lambda row: (row["closed"], -(row["volume_24h_m"] or 0), -(row["volume_m"] or 0)))
 
     print("Fetching price history and latest books for markets...")
     for market in flat_markets[: config.max_events]:
@@ -138,6 +139,7 @@ def main() -> None:
                 outcome.update(book)
                 if book["midpoint"]:
                     outcome["probability"] = book["midpoint"]
+                    outcome["probability_source"] = "clob_midpoint"
             except Exception as exc:
                 outcome["book_error"] = str(exc)
 
@@ -146,6 +148,7 @@ def main() -> None:
                 history_points = normalize_price_history(history, config.price_history_max_points)
                 if len(history_points) >= 2 and len(history_points) > len(market["price_history"]):
                     market["price_history"] = history_points
+                    market["history_outcome"] = outcome["name"]
             except Exception as exc:
                 outcome["history_error"] = str(exc)
 
@@ -183,8 +186,10 @@ def main() -> None:
                 "severity": top["severity"],
                 "count_24h": len(alerts),
                 "largest_notional": max(row["notional_usd"] for row in alerts),
+                "latest": alerts[0],
             }
 
+    snapshots = enrich_snapshots(public_events, read_snapshots(config), generated_at)
     dashboard = {
         "generated_at": generated_at,
         "source": "Polymarket public APIs",
@@ -192,6 +197,8 @@ def main() -> None:
         "events": public_events,
     }
     write_json(config.output_dir / "latest" / "dashboard.json", dashboard)
+    write_json(config.output_dir / "latest" / "summary.json", {**dashboard, "events": lightweight_events(public_events)})
+    write_json(config.output_dir / "latest" / "probability-snapshots.json", snapshots)
     write_json(config.output_dir / "latest" / "tags.json", {"generated_at": generated_at, "tags": tags})
     write_json(config.output_dir / "alerts" / "latest-big-trades.json", {"generated_at": generated_at, "alerts_by_market": alerts_by_market})
 
