@@ -6,6 +6,7 @@ import math
 import re
 from datetime import datetime, timezone
 from typing import Any
+from urllib.parse import urlsplit
 
 
 def now_iso() -> str:
@@ -80,6 +81,19 @@ def masked_wallet(value: Any, profile_name: Any = None) -> str:
     return "Unknown trader"
 
 
+def public_image_url(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    value = value.strip()
+    try:
+        url = urlsplit(value)
+        if url.scheme == "https" and url.hostname and not url.username and not url.password:
+            return value
+    except ValueError:
+        pass
+    return None
+
+
 def normalize_events(events: list[dict[str, Any]], generated_at: str) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     public_events: dict[str, dict[str, Any]] = {}
     flat_markets: list[dict[str, Any]] = []
@@ -92,6 +106,8 @@ def normalize_events(events: list[dict[str, Any]], generated_at: str) -> tuple[l
             {
                 "event_title": event_title,
                 "event_slug": event_slug,
+                "image_url": public_image_url(event.get("image")),
+                "icon_url": public_image_url(event.get("icon")),
                 "active": to_bool(event.get("active")),
                 "closed": to_bool(event.get("closed")),
                 "volume_m": money_millions(first_present(event.get("volume"), event.get("volumeNum"))),
